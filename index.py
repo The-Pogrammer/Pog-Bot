@@ -57,10 +57,7 @@ async def checkchanneldescriptions(interaction: discord.Interaction):
         if isinstance(channel, discord.TextChannel):
             description = channel.topic if channel.topic else "No description"
             channelinfo.append(channel.name + ": " + description)
-    
-    print(channelinfo)
-
-
+            
     try:
         #split into 2000 character segments and send seperately
         message = "\n\n".join(channelinfo)
