@@ -53,6 +53,14 @@ async def runprogram(interaction: discord.Interaction, code: str):
         
     await interaction.response.send_message(str(handler))
 
+@bot.tree.command()
+async def furry(interaction: discord.Interaction):
+    #get furrylinks.txt
+    with open("furrylinks.txt") as file:
+        links = file.readlines()
+        await interaction.response.send_message(links[random.randint(0, len(links)-1)])
+
+
 @bot.command()
 async def makemeasandwich(ctx):
     responses = ["Make it yourself.", "I'm not a butler.", "Poof! You're a sandwich!"]
