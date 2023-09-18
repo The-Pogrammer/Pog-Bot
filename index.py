@@ -37,7 +37,7 @@ async def furry(interaction: discord.Interaction):
 
         await interaction.response.defer()
 
-        if (link.startswith("https:")):
+        if (not link.startswith("file:")):
             await interaction.followup.send(link)
         else:
             file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "speechbubblefurries", link.strip().replace("file:", "", 1))
@@ -57,7 +57,7 @@ async def checkchanneldescriptions(interaction: discord.Interaction):
         if isinstance(channel, discord.TextChannel):
             description = channel.topic if channel.topic else "No description"
             channelinfo.append(channel.name + ": " + description)
-            
+
     try:
         #split into 2000 character segments and send seperately
         message = "\n\n".join(channelinfo)
@@ -75,6 +75,13 @@ async def checkchanneldescriptions(interaction: discord.Interaction):
 
     except Exception as e:
         print(e)
+
+#command that sends the length of "furrylinks.txt" in terms of newlines
+@bot.command()
+async def uniquefurries(ctx):
+    with open("furrylinks.txt") as file:
+        await ctx.send(f"{len(file.readlines())}")
+
 
 @bot.command()
 async def makemeasandwich(ctx):
