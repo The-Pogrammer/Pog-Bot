@@ -1,10 +1,16 @@
 import discord
 import os
 import random
+import requests
+import time
+import pickle
 
 from discord.ext import tasks, commands
+from discord.ext.commands import CommandOnCooldown
 from dotenv import load_dotenv
 from supportscripts.discordfunctions import *
+
+furryblacklist = [1150221079021883442]
 
 load_dotenv()
 bot = commands.Bot(intents=discord.Intents.all(), command_prefix="p!")
@@ -14,11 +20,61 @@ TOKEN = os.getenv('TOKEN')
 async def on_ready():
     print("ready")
 
+    global servers
+
+    try:
+        servers = pickle.load(open("variables/servers.pickle", "rb"))
+    except:
+        pass
+
     try:
         synced = await bot.tree.sync()
         print(f"Synced {len(synced)} command(s)")
     except Exception as e:
         print(e)
+
+
+@bot.event
+async def on_message(message):
+    await bot.process_commands(message)
+
+    if message.author.id != 697959912302444614 or message.content.startswith("p!"):
+        return
+
+    if message.channel.id in furryblacklist:
+        return
+
+    if message.guild.id in servers:
+        await message.delete()
+
+        webhooks = await message.channel.webhooks()
+        bot_user = bot.user
+        bot_webhooks = [webhook for webhook in webhooks if webhook.user == bot_user]
+        with open("proxy.jpeg", "rb") as avatar_file:
+            avatar_file = avatar_file.read()
+            if len(bot_webhooks) == 0:
+                webhook = await message.channel.create_webhook(name="pogwammew", avatar=avatar_file)
+
+                # Send message content
+                if message.content:
+                    await webhook.send(message.content)
+
+                # Send attachments as separate messages
+                for attachment in message.attachments:
+                    await webhook.send(file=await attachment.to_file())
+            else:
+                webhook = bot_webhooks[0]  # Assuming there is only one bot webhook in the channel
+                
+                await webhook.edit(name="pogwammew")
+                
+                if message.content:
+                    await webhook.send(message.content)
+
+                # Send attachments as separate messages
+                for attachment in message.attachments:
+                    await webhook.send(file=await attachment.to_file())
+
+    
 
 @bot.tree.command()
 async def verifyuserexists(interaction: discord.Interaction, id: str):
@@ -30,6 +86,10 @@ async def verifyuserexists(interaction: discord.Interaction, id: str):
 
 @bot.tree.command()
 async def furry(interaction: discord.Interaction):
+    if interaction.channel.id in furryblacklist:
+        await interaction.response.send_message("Sorry, you can't use this command here.", ephemeral=True)
+        return
+    
     #get furrylinks.txt
     with open("furrylinks.txt") as file:
         links = file.readlines()
@@ -59,7 +119,6 @@ async def checkchanneldescriptions(interaction: discord.Interaction):
             channelinfo.append(channel.name + ": " + description)
 
     try:
-        #split into 2000 character segments and send seperately
         message = "\n\n".join(channelinfo)
         with open("channelinfo.txt", "w") as file:
             #replace characters that can't be encoded
@@ -82,6 +141,91 @@ async def uniquefurries(ctx):
     with open("furrylinks.txt") as file:
         await ctx.send(f"{len(file.readlines())}")
 
+@bot.command()
+async def createfurryfile(ctx):
+    if ctx.author.id != 697959912302444614:
+        await ctx.send("Sorry, you can't use this command")
+        return
+
+    with open("furrylinks.txt") as file:
+        links = file.readlines()
+
+        folder_name = "furrylinks"
+        os.makedirs(folder_name, exist_ok=True)
+
+        for i, link in enumerate(links):
+            if not link.startswith("file:"):
+                link = link.strip()
+                file_name = os.path.basename(link)
+                file_name_without_extension, file_extension = os.path.splitext(file_name)
+
+                # Generate a unique identifier using the current timestamp
+                extrabit = str(i+1)
+
+                # Create a new file name with the unique identifier
+                new_file_name = f"{extrabit}{file_extension}"
+                
+                file_path = os.path.join(folder_name, new_file_name)
+                response = requests.get(link)
+
+                if response.status_code == 200:
+                    with open(file_path, 'wb') as file:
+                        file.write(response.content)
+                        
+                    # await ctx.send(f"Downloaded: {link}")
+                else:
+                    print(f"Failed to download: {link}")
+            
+        await ctx.send("ran command")
+
+@bot.command()
+async def remove_webhooks(ctx):
+    if ctx.author.id != 697959912302444614:
+        await ctx.send("Sorry, you can't use this command")
+        return
+
+    webhooks = await ctx.guild.webhooks()
+    bot_user = ctx.bot.user
+    for webhook in webhooks:
+        if webhook.user == bot_user:
+            await webhook.delete()
+    await ctx.send("Removed all bot webhooks")
+
+#toggle furry
+@bot.command()
+async def toggleFurry(ctx):
+    if ctx.author.id != 697959912302444614:
+        await ctx.send("Sorry, you can't use this command")
+        return
+
+    if ctx.guild.id not in servers:
+        servers.append(ctx.guild.id)
+    else:
+        servers.remove(ctx.guild.id)
+
+    #toggled furry off/on
+    await ctx.send("toggled furry " + ("on" if servers.count(ctx.guild.id) > 0 else "off"))
+
+    try:
+        pickle.dump(servers, open("variables/servers.pickle", "wb"))
+    except:
+        pass
+
+@bot.command()
+async def updatepfps(ctx):
+    if ctx.author.id != 697959912302444614:
+        await ctx.send("Sorry, you can't use this command")
+        return
+
+    with open("proxy.jpeg", "rb") as avatar_file:
+        avatar_file = avatar_file.read()
+        webhooks = await ctx.guild.webhooks()
+        bot_user = ctx.bot.user
+        for webhook in webhooks:
+            if webhook.user == bot_user:
+                await webhook.edit(avatar=avatar_file)
+
+    await ctx.send("All updated!")
 
 @bot.command()
 async def makemeasandwich(ctx):
