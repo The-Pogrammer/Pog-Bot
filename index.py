@@ -29,13 +29,17 @@ async def on_ready():
     print("ready")
 
     global furry_Users
+    global banned_from_fursona
 
     try:
         furry_Users = pickle.load(open("variables/furry_Users.pickle", "rb"))
     except:
-        servers = []
         furry_Users = {}
-        pass
+
+    try:
+        banned_from_fursona = pickle.load(open("variables/banfursona.pickle", "rb"))
+    except:
+        banned_from_fursona = []
 
     try:
         synced = await bot.tree.sync()
@@ -77,84 +81,18 @@ async def on_message(message):
                     await webhook.send(attachment.url)
 
 @bot.tree.command()
-async def togglesona(interaction: discord.Interaction):
-    await interaction.response.send_message("This command is currently disabled due to Pogrammer feeling bad about annoying people with furry shit.", ephemeral=True)
-    return
-    if interaction.user.id not in furry_Users:
-        await interaction.response.send_message("You're not a furry!", ephemeral=True)
-        return
+async def createfursona(interaction: discord.Interaction, furryurl: discord.Attachment, name: str):
+    """
+    Create a fursona.
+    """
 
-    if interaction.guild.id in furry_Users[interaction.user.id].servers:
-        furry_Users[interaction.user.id].servers.remove(interaction.guild.id)
-    else:
-        furry_Users[interaction.user.id].servers.append(interaction.guild.id)
-
-    pickle.dump(furry_Users, open("variables/furry_Users.pickle", "wb"))
-
-    await interaction.response.send_message("toggled")
-
-@bot.tree.command()
-async def furry(interaction: discord.Interaction):
-    await interaction.response.send_message("This command is currently disabled due to Pogrammer feeling bad about annoying people with furry shit.", ephemeral=True)
-    return
-
-    if interaction.channel.id in furryblacklist:
-        await interaction.response.send_message("Sorry, you can't use this command here.", ephemeral=True)
-        return
-    
-    #get furrylinks.txt
-    with open("furrylinks.txt") as file:
-        links = file.readlines()
-        link = links[random.randint(0, len(links)-1)]
-
-        await interaction.response.defer()
-
-        if (not link.startswith("file:")):
-            await interaction.followup.send(link)
-        else:
-            file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "speechbubblefurries", link.strip().replace("file:", "", 1))
-
-            with open(file_path, "rb") as file:
-                await interaction.followup.send(file=discord.File(file))
-
-@bot.tree.command()
-async def checkchanneldescriptions(interaction: discord.Interaction, filter: str = ""):
-    #whitlist for only me :)
-    if interaction.user.id != 697959912302444614:
-        await interaction.response.send_message("Sorry, you can't use this command", ephemeral=True)
-        return
-    
-    channelinfo = []
-    for channel in interaction.guild.channels:
-        if isinstance(channel, discord.TextChannel):
-            description = channel.topic if channel.topic else "No description"
-            if filter in description:
-                channelinfo.append(channel.name + ": " + description)
-
-    try:
-        message = "\n\n".join(channelinfo)
-        with open("channelinfo.txt", "w") as file:
-            #replace characters that can't be encoded
-            message = message.encode("ascii", "ignore").decode()
-            
-            file.write(message)
-            
-        await interaction.response.send_message(file=discord.File("channelinfo.txt"))
-
-        #delete file
-        os.remove("channelinfo.txt")
-
-
-    except Exception as e:
-        print(e)
-
-@bot.tree.command()
-async def createfurry(interaction: discord.Interaction, furryurl: discord.Attachment, name: str):
-    await interaction.response.send_message("This command is currently disabled due to Pogrammer feeling bad about annoying people with furry shit.", ephemeral=True)
-    return
     # Check if user is already furry
     if interaction.user.id in furry_Users:
         await interaction.response.send_message("You already have a furry!", ephemeral=True)
+        return
+
+    if interaction.user.id in banned_from_fursona:
+        await interaction.response.send_message("You're banned from fursona!", ephemeral=True)
         return
 
     # Read attachment data
@@ -185,34 +123,183 @@ async def createfurry(interaction: discord.Interaction, furryurl: discord.Attach
     except:
         pass
 
-    await interaction.response.send_message("furry created")
+    await interaction.response.send_message("furry created", ephemeral=True)
 
+#slash command only I can see and use
+@bot.tree.command()
+@commands.check(lambda ctx: ctx.author.id == 697959912302444614)
+async def removefursona(interaction: discord.Interaction, userid: str):
+    """
+    Remove a fursona. Admin only.
+    """
+
+    userid = int(userid)
     
-
-@bot.command()
-async def reset(ctx):
-    if ctx.author.id != 697959912302444614:
-        await ctx.send("Sorry, you can't use this command")
+    if userid not in furry_Users:
+        await interaction.response.send_message("That user has no fursona.", ephemeral=True)
         return
 
-    furry_Users.clear()
+    furry_Users.pop(userid)
+    pickle.dump(furry_Users, open("variables/furry_Users.pickle", "wb"))
+
+    await interaction.response.send_message("Removed fursona.", ephemeral=True)
+
+
+@bot.tree.command()
+async def togglefursona(interaction: discord.Interaction):
+    """
+    Toggle your fursona in this server.
+    """
+    if interaction.user.id not in furry_Users:
+        await interaction.response.send_message("You're not a furry!", ephemeral=True)
+        return
+
+    if interaction.guild.id in furry_Users[interaction.user.id].servers:
+        furry_Users[interaction.user.id].servers.remove(interaction.guild.id)
+    else:
+        furry_Users[interaction.user.id].servers.append(interaction.guild.id)
 
     pickle.dump(furry_Users, open("variables/furry_Users.pickle", "wb"))
 
-    await ctx.send("reset")
+    await interaction.response.send_message("Fursona toggled " + ("on" if interaction.guild.id in furry_Users[interaction.user.id].servers else "off") + " in this server.", ephemeral=True)
+
+@bot.tree.command()
+async def editfursona(interaction: discord.Interaction, furryurl: discord.Attachment = None, name: str = None):
+    """
+    Edit your fursona.
+    """
+
+    # Check if user is already furry
+    if interaction.user.id not in furry_Users:
+        await interaction.response.send_message("You're not a furry!", ephemeral=True)
+        return
+
+    if furryurl is None and name is None:
+        await interaction.response.send_message("You need to provide either a furryurl or a name.", ephemeral=True)
+        return
+
+    if furryurl is not None:
+        
+        # Read attachment data
+        attachment_data = await furryurl.read()
+
+        # Open the image using Pillow
+        image = Image.open(BytesIO(attachment_data))
+
+        # Convert the image to RGB mode
+        image = image.convert("RGB")
+
+        # Resize the image to reduce its size
+        # Adjust the size as per your requirements
+        resized_image = image.resize((500, 500))
+
+        # Save the resized image to a BytesIO object
+        compressed_data = BytesIO()
+        resized_image.save(compressed_data, format="JPEG")
+
+        # Reset the file pointer of the BytesIO object
+        compressed_data.seek(0)
+
+        furry_Users[interaction.user.id].furryurl = compressed_data.read()
+
+    if name is not None:
+        furry_Users[interaction.user.id].name = name
+
+    try:
+        pickle.dump(furry_Users, open("variables/furry_Users.pickle", "wb"))
+    except:
+        pass
+
+    await interaction.response.send_message("Fursona edited.", ephemeral=True)
+
+@bot.tree.command()
+async def furry(interaction: discord.Interaction):
+    """
+    Display a random speechbubble furry.
+    """
+    if interaction.channel.id in furryblacklist:
+        await interaction.response.send_message("Sorry, you can't use this command here.", ephemeral=True)
+        return
+    
+    #get furrylinks.txt
+    with open("furrylinks.txt") as file:
+        links = file.readlines()
+        link = links[random.randint(0, len(links)-1)]
+
+        await interaction.response.defer()
+
+        if (not link.startswith("file:")):
+            await interaction.followup.send(link)
+        else:
+            file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "speechbubblefurries", link.strip().replace("file:", "", 1))
+
+            with open(file_path, "rb") as file:
+                await interaction.followup.send(file=discord.File(file))
+
+@bot.tree.command()
+@commands.check(lambda ctx: ctx.author.id == 697959912302444614)
+async def banuserfromfursona(interaction: discord.Interaction, userid: str):
+    """
+    Ban a user from fursona. Admin only.
+    """
+
+    userid = int(userid)
+    if userid in furry_Users:
+        furry_Users.pop(userid)
+        pickle.dump(furry_Users, open("variables/furry_Users.pickle", "wb"))
+    
+    banned_from_fursona.append(userid)
+    pickle.dump(banned_from_fursona, open("variables/banfursona.pickle", "wb"))
+
+    await interaction.response.send_message("User banned from fursona.", ephemeral=True)
+
+@bot.tree.command()
+@commands.check(lambda ctx: ctx.author.id == 697959912302444614)
+async def checkchanneldescriptions(interaction: discord.Interaction, filter: str = ""):
+    """
+    Check channel descriptions, optionally with a filter.
+    """
+    
+    channelinfo = []
+    for channel in interaction.guild.channels:
+        if isinstance(channel, discord.TextChannel):
+            description = channel.topic if channel.topic else "No description"
+            if filter in description:
+                channelinfo.append(channel.name + ": " + description)
+
+    try:
+        message = "\n\n".join(channelinfo)
+        with open("channelinfo.txt", "w") as file:
+            #replace characters that can't be encoded
+            message = message.encode("ascii", "ignore").decode()
+            
+            file.write(message)
+            
+        await interaction.response.send_message(file=discord.File("channelinfo.txt"))
+
+        #delete file
+        os.remove("channelinfo.txt")
+
+
+    except Exception as e:
+        print(e)
     
 
 #command that sends the length of "furrylinks.txt" in terms of newlines
-@bot.command()
-async def uniquefurries(ctx):
+@bot.tree.command()
+async def uniquefurries(interaction: discord.Interaction):
+    """
+    see the number of unique furries pog bot can send.
+    """
     with open("furrylinks.txt") as file:
-        await ctx.send(f"{len(file.readlines())}")
+        await interaction.response.send(f"{len(file.readlines())}")
 
-@bot.command()
+@bot.tree.command()
+@commands.check(lambda ctx: ctx.author.id == 697959912302444614)
 async def createfurryfile(ctx):
-    if ctx.author.id != 697959912302444614:
-        await ctx.send("Sorry, you can't use this command")
-        return
+    """
+    Compose all the furries pog bot can send into a single file.
+    """
 
     with open("furrylinks.txt") as file:
         links = file.readlines()
@@ -246,35 +333,8 @@ async def createfurryfile(ctx):
         await ctx.send("ran command")
 
 @bot.command()
-async def remove_webhooks(ctx):
-    if ctx.author.id != 697959912302444614:
-        await ctx.send("Sorry, you can't use this command")
-        return
-
-    webhooks = await ctx.guild.webhooks()
-    bot_user = ctx.bot.user
-    for webhook in webhooks:
-        if webhook.user == bot_user:
-            await webhook.delete()
-    await ctx.send("Removed all bot webhooks")
-
-@bot.command()
 async def makemeasandwich(ctx):
     responses = ["Make it yourself.", "I'm not a butler.", "Poof! You're a sandwich!"]
     await ctx.send(responses[random.randint(0, len(responses)-1)])
 
 bot.run(TOKEN)
-
-
-
-#set avatar_file to the attached file
-#    try:
-#        avatar_file = await ctx.message.attachments[0].read()
-#    except:
-#        return
-#
-#    for webhook in webhooks:
-#            if webhook.user == ctx.bot.user:
-#                await webhook.edit(avatar=avatar_file)
-#
-#                await webhook.send("test")
