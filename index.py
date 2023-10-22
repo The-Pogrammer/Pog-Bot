@@ -21,6 +21,7 @@ load_dotenv()
 bot = commands.Bot(intents=discord.Intents.all(), command_prefix="p!")
 TOKEN = os.getenv("TOKEN")
 
+
 @bot.event
 async def on_ready():
     print("ready")
@@ -38,17 +39,19 @@ async def on_ready():
     except:
         banned_from_fursona = []
 
+    bot.tree.add_command(fursona_commands)
+
     try:
         synced = await bot.tree.sync()
         print(f"Synced {len(synced)} command(s)")
     except Exception as e:
         print(e)
 
+
 @bot.event
 async def on_message(message: discord.Message):
     await bot.process_commands(message)
 
-    
     if (
         message.content.startswith("p!")
         or message.channel.id in furryblacklist
@@ -63,7 +66,7 @@ async def on_message(message: discord.Message):
         and message.guild.id in furry_Users[message.author.id].servers
     ):
         await message.delete()
-        
+
         if message.guild.id in furry_Users[message.author.id].servers:
             user = furry_Users[message.author.id]
 
@@ -116,11 +119,13 @@ async def on_message(message: discord.Message):
                     )
                     furry_Users[message.author.id].last_message = last_message.id
 
+
 @bot.tree.command()
 @commands.check(lambda ctx: ctx.author.id == 697959912302444614)
 async def force_stop(interaction: discord.Interaction):
     await interaction.response.send_message("Resetting...", ephemeral=True)
     await bot.close()
+
 
 @bot.tree.command()
 @commands.check(lambda ctx: ctx.author.id == 697959912302444614)
@@ -154,14 +159,92 @@ async def check_channel_descriptions(
     except Exception as e:
         print(e)
 
+
+@bot.tree.command()
+@commands.check(lambda ctx: ctx.author.id == 697959912302444614)
+async def create_furry_file(interaction: discord.Interaction):
+    """
+    Compose all the furries pog bot can send into a single file.
+    """
+    interaction.response.defer()
+
+    with open("furrylinks.txt") as file:
+        links = file.readlines()
+
+        folder_name = "furrylinks"
+        os.makedirs(folder_name, exist_ok=True)
+
+        for i, link in enumerate(links):
+            if not link.startswith("file:"):
+                link = link.strip()
+                file_name = os.path.basename(link)
+                file_name_without_extension, file_extension = os.path.splitext(
+                    file_name
+                )
+
+                # Generate a unique identifier using the current timestamp
+                extrabit = str(i + 1)
+
+                # Create a new file name with the unique identifier
+                new_file_name = f"{extrabit}{file_extension}"
+
+                file_path = os.path.join(folder_name, new_file_name)
+                response = requests.get(link)
+
+                if response.status_code == 200:
+                    with open(file_path, "wb") as file:
+                        file.write(response.content)
+
+                    # await ctx.send(f"Downloaded: {link}")
+                else:
+                    print(f"Failed to download: {link}")
+
+        await interaction.response.send("ran command")
+
+
+@bot.tree.command()
+async def furry(interaction: discord.Interaction):
+    """
+    Display a random speechbubble furry.
+    """
+    if interaction.channel.id in furryblacklist:
+        await interaction.response.send_message(
+            "Sorry, you can't use this command here.", ephemeral=True
+        )
+        return
+
+    # get furrylinks.txt
+    with open("furrylinks.txt") as file:
+        links = file.readlines()
+        link = random.choice(links)
+
+        await interaction.response.defer()
+
+        if not link.startswith("file:"):
+            await interaction.followup.send(link)
+        else:
+            file_path = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                "speechbubblefurries",
+                link.strip().replace("file:", "", 1),
+            )
+
+            with open(file_path, "rb") as file:
+                await interaction.followup.send(file=discord.File(file))
+
+
 @bot.command()
 async def makemeasandwich(ctx):
     responses = ["Make it yourself.", "I'm not a butler.", "Poof! You're a sandwich!"]
     await ctx.send(random.choice(responses))
 
+
 # ----------------------------
 # Fursona Functions
 # ----------------------------
+
+fursona_commands = app_commands.Group(name="fursona", description="Fursona Commands")
+
 
 def exclude_weak_refs(obj):
     # Recursively remove or replace weak references in the object
@@ -176,6 +259,7 @@ def exclude_weak_refs(obj):
     else:
         return obj
 
+
 class FurryUser(commands.Bot):
     def __init__(self, furryurl, name, servers):
         self.furryurl = furryurl
@@ -185,6 +269,7 @@ class FurryUser(commands.Bot):
 
     def __str__(self):
         return f"{self.name}:{self.furryurl}:{self.servers}:{self.last_message}"
+
 
 # Modify the save function
 async def save(data, filepath):
@@ -200,7 +285,8 @@ def load(filepath) -> Dict[int, FurryUser]:
         data = pickle.load(file)
     return data
 
-@bot.tree.command()
+
+@fursona_commands.command()
 @commands.check(lambda ctx: furry_Users[ctx.author.id].last_message is not None)
 async def edit_last_message(interaction: discord.Interaction, content: str):
     """
@@ -225,7 +311,8 @@ async def edit_last_message(interaction: discord.Interaction, content: str):
             "Cannot edit the message.", ephemeral=True
         )
 
-@bot.tree.command()
+
+@fursona_commands.command()
 @commands.check(lambda ctx: furry_Users[ctx.author.id].last_message is not None)
 async def delete_last_message(interaction: discord.Interaction):
     """
@@ -239,8 +326,8 @@ async def delete_last_message(interaction: discord.Interaction):
     await interaction.response.send_message("Message deleted", ephemeral=True)
 
 
-@bot.tree.command()
-async def create_fursona(
+@fursona_commands.command()
+async def create(
     interaction: discord.Interaction, furryurl: discord.Attachment, name: str
 ):
     """
@@ -298,8 +385,8 @@ async def create_fursona(
     await interaction.response.send_message("furry created", ephemeral=True)
 
 
-@bot.tree.command()
-async def toggle_fursona(interaction: discord.Interaction):
+@fursona_commands.command()
+async def toggle(interaction: discord.Interaction):
     """
     Toggle your fursona in this server.
     """
@@ -326,8 +413,8 @@ async def toggle_fursona(interaction: discord.Interaction):
     )
 
 
-@bot.tree.command()
-async def edit_fursona(
+@fursona_commands.command()
+async def edit(
     interaction: discord.Interaction,
     furryurl: discord.Attachment = None,
     name: str = None,
@@ -381,42 +468,18 @@ async def edit_fursona(
     await interaction.response.send_message("Fursona edited.", ephemeral=True)
 
 
-@bot.tree.command()
-async def furry(interaction: discord.Interaction):
-    """
-    Display a random speechbubble furry.
-    """
-    if interaction.channel.id in furryblacklist:
-        await interaction.response.send_message(
-            "Sorry, you can't use this command here.", ephemeral=True
-        )
-        return
-
-    # get furrylinks.txt
-    with open("furrylinks.txt") as file:
-        links = file.readlines()
-        link = random.choice(links)
-
-        await interaction.response.defer()
-
-        if not link.startswith("file:"):
-            await interaction.followup.send(link)
-        else:
-            file_path = os.path.join(
-                os.path.dirname(os.path.abspath(__file__)),
-                "speechbubblefurries",
-                link.strip().replace("file:", "", 1),
-            )
-
-            with open(file_path, "rb") as file:
-                await interaction.followup.send(file=discord.File(file))
-
-@bot.tree.command()
+@fursona_commands.command()
 @commands.check(lambda ctx: ctx.author.id == 697959912302444614)
-async def debug_add_fursona(interaction: discord.Interaction, id: str, image : discord.Attachment, name: str):
+async def debug_create(
+    interaction: discord.Interaction, id: str, image: discord.Attachment, name: str
+):
+    """
+    Force create a fursona
+    """
+
     attachment_data = await image.read()
 
-        # Open the image using Pillow
+    # Open the image using Pillow
     image = Image.open(BytesIO(attachment_data))
     # Convert the image to RGB mode
     image = image.convert("RGB")
@@ -428,19 +491,18 @@ async def debug_add_fursona(interaction: discord.Interaction, id: str, image : d
     resized_image.save(compressed_data, format="JPEG")
     # Reset the file pointer of the BytesIO object
     compressed_data.seek(0)
-    
+
     furry_Users.update(
-        {
-            int(id): FurryUser(compressed_data.read(), name, [interaction.guild.id])
-        }
+        {int(id): FurryUser(compressed_data.read(), name, [interaction.guild.id])}
     )
     await save(furry_Users, "variables/furry_Users.pickle")
 
     await interaction.response.send_message("Fursona added.", ephemeral=True)
 
-@bot.tree.command()
+
+@fursona_commands.command()
 @commands.check(lambda ctx: ctx.author.id == 697959912302444614)
-async def list_fursona(interaction: discord.Interaction):
+async def list(interaction: discord.Interaction):
     """
     Lists all current fursonas and their owners
     """
@@ -452,9 +514,9 @@ async def list_fursona(interaction: discord.Interaction):
     await interaction.response.send_message("Fursonas listed.", ephemeral=True)
 
 
-@bot.tree.command()
+@fursona_commands.command()
 @commands.check(lambda ctx: ctx.author.id == 697959912302444614)
-async def remove_fursona(interaction: discord.Interaction, userid: str):
+async def remove(interaction: discord.Interaction, userid: str):
     """
     Remove a fursona. Admin only.
     """
@@ -473,9 +535,9 @@ async def remove_fursona(interaction: discord.Interaction, userid: str):
     await interaction.response.send_message("Removed fursona.", ephemeral=True)
 
 
-@bot.tree.command()
+@fursona_commands.command()
 @commands.check(lambda ctx: ctx.author.id == 697959912302444614)
-async def ban_user_from_fursona(interaction: discord.Interaction, userid: str):
+async def ban_user(interaction: discord.Interaction, userid: str):
     """
     Ban a user from fursona. Admin only.
     """
@@ -492,55 +554,13 @@ async def ban_user_from_fursona(interaction: discord.Interaction, userid: str):
 
 
 # command that sends the length of "furrylinks.txt" in terms of newlines
-@bot.tree.command()
-async def unique_furries(interaction: discord.Interaction):
+@fursona_commands.command()
+async def count_unique_furries(interaction: discord.Interaction):
     """
     see the number of unique furries pog bot can send.
     """
     with open("furrylinks.txt") as file:
         await interaction.response.send(f"{len(file.readlines())}")
-
-
-@bot.tree.command()
-@commands.check(lambda ctx: ctx.author.id == 697959912302444614)
-async def create_furry_file(interaction: discord.Interaction):
-    """
-    Compose all the furries pog bot can send into a single file.
-    """
-    interaction.response.defer()
-
-    with open("furrylinks.txt") as file:
-        links = file.readlines()
-
-        folder_name = "furrylinks"
-        os.makedirs(folder_name, exist_ok=True)
-
-        for i, link in enumerate(links):
-            if not link.startswith("file:"):
-                link = link.strip()
-                file_name = os.path.basename(link)
-                file_name_without_extension, file_extension = os.path.splitext(
-                    file_name
-                )
-
-                # Generate a unique identifier using the current timestamp
-                extrabit = str(i + 1)
-
-                # Create a new file name with the unique identifier
-                new_file_name = f"{extrabit}{file_extension}"
-
-                file_path = os.path.join(folder_name, new_file_name)
-                response = requests.get(link)
-
-                if response.status_code == 200:
-                    with open(file_path, "wb") as file:
-                        file.write(response.content)
-
-                    # await ctx.send(f"Downloaded: {link}")
-                else:
-                    print(f"Failed to download: {link}")
-
-        await interaction.response.send("ran command")
 
 
 bot.run(TOKEN)
