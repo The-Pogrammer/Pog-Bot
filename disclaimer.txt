@@ -1,0 +1,24 @@
+🔒 **Disclaimer: Privacy and Data Usage Notice**
+
+Hello! I'm a bot designed to provide various functionalities for this server. Please note the following:
+
+1. **Privacy:** I do not store any personal information without your explicit consent. However, I do have a few utility commands that do give pogrammer access to server information.
+
+2. **Data Usage:** I only access and use data within the server for the purpose of providing the requested services and features. I do not share or sell any data to third parties.
+
+3. **Server Access:** As a bot, I have certain permissions and access within this server to perform my intended functions.
+
+If you have any concerns or questions about your privacy or data usage, please don't hesitate to reach out to pogrammer in his server!
+https://discord.gg/fBhcEJursX
+
+Other things to note:
+
+1. Do not change my announcement channel's name, otherwise you won't recieve updates to this notice.
+
+2. If you don't want to recieve updates for some reason, then change the name, but pogrammer isn't responsible for not informing you in that case.
+
+3. If you don't want to recieve any pog bot updates, just delete this channel.
+
+Thank you for using my services!
+
+-Pog Bot
