@@ -24,7 +24,6 @@ is_initialized = False
 
 @bot.event
 async def on_ready():
-    #print number of servers
     print(len(bot.guilds))
 
     global is_initialized
