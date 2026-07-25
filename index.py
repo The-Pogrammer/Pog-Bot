@@ -559,6 +559,5 @@ async def jumpscare(ctx):
 @bot.command()
 async def makemeasandwich(ctx):
     responses = ["Make it yourself.", "I'm not a butler.", "Poof! You're a sandwich!"]
-    await ctx.send(random.choice(responses))
-
+    await ctx.send(random.choice(responses))               
 bot.run(TOKEN)
